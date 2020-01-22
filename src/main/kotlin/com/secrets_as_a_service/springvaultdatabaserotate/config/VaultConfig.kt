@@ -29,7 +29,7 @@ class VaultConfig(
             if (event.path == vaultCredsPath) {
                 log.info { "Lease change for DB: ($event) : (${event.lease})" }
                 if (event.isLeaseExpired && event.mode == RENEW) {
-                    log.info { "Replace RENEW lease for expired database credential with ROTATE" }
+                    log.info { "Replace RENEW for expired credential with ROTATE" }
                     leaseContainer.requestRotatingSecret(vaultCredsPath)
                 } else if (event is SecretLeaseCreatedEvent && event.mode == ROTATE) {
                     val credential = event.credential
@@ -41,15 +41,24 @@ class VaultConfig(
     }
 
     private val SecretLeaseEvent.path get() = source.path
-    private val SecretLeaseEvent.isLeaseExpired get() = this is SecretLeaseExpiredEvent
+    private val SecretLeaseEvent.isLeaseExpired
+        get() = this is SecretLeaseExpiredEvent
     private val SecretLeaseEvent.mode get() = source.mode
 
-    private val SecretLeaseCreatedEvent.credential get() = Credential(get("username"), get("password"))
-    private fun SecretLeaseCreatedEvent.get(parameter: String) =
-            secrets[parameter] as? String ?: throw IllegalStateException("Cannot get $parameter from secrets").also {
-                log.error { "Cannot update DB credentials from vault (no $parameter available). Shutting down." }
-                applicationContext.close()
+    private val SecretLeaseCreatedEvent.credential
+        get() = Credential(get("username"), get("password"))
+
+    private fun SecretLeaseCreatedEvent.get(param: String): String {
+        val value = secrets[param] as? String
+        if (value == null) {
+            log.error {
+                "Cannot update DB credentials (no $param available). Shutting down."
             }
+            applicationContext.close()
+            throw IllegalStateException("Cannot get $param from secrets")
+        }
+        return value
+    }
 
     private fun updateDbProperties(credential: Credential) {
         val (username, password) = credential
