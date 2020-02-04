@@ -3,6 +3,7 @@ package com.secrets_as_a_service.springvaultdatabaserotate.config
 import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Configuration
 import org.springframework.vault.core.lease.SecretLeaseContainer
@@ -14,6 +15,7 @@ import org.springframework.vault.core.lease.event.SecretLeaseExpiredEvent
 import javax.annotation.PostConstruct
 
 @Configuration
+@ConditionalOnBean(SecretLeaseContainer::class)
 class VaultConfig(
         private val leaseContainer: SecretLeaseContainer,
         @Value("\${spring.cloud.vault.database.role}")
