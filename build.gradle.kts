@@ -1,13 +1,18 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
+//tag::plugins[]
 plugins {
+    //tag::ignore_plugins[]
     kotlin("jvm") version "1.3.61"
     kotlin("plugin.spring") version "1.3.61"
     kotlin("plugin.jpa") version "1.3.61"
 
-    id("org.springframework.boot") version "2.2.2.RELEASE"
-    id("io.spring.dependency-management") version "1.0.8.RELEASE"
+    //end::ignore_plugins[]
+    id("org.springframework.boot") version "2.2.2.RELEASE" // <1>
+    id("io.spring.dependency-management") version "1.0.8.RELEASE" // <2>
 }
+
+//end::plugins[]
 
 group = "com.secrets_as_a_service.blog"
 version = "0.0.1"
@@ -19,16 +24,19 @@ repositories {
 
 extra["springCloudVersion"] = "Hoxton.SR1"
 
+//tag::dependencies[]
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa") // <3>
+    //tag::ignore_dependencies[]
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.cloud:spring-cloud-vault-config-databases")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation(group = "io.github.microutils", name = "kotlin-logging", version = "1.7.8")
-
-    runtimeOnly("org.postgresql:postgresql")
+    //end::ignore_dependencies[]
+    runtimeOnly("org.postgresql:postgresql") // <4>
 }
+//end::dependencies[]
 
 dependencyManagement {
     imports {
