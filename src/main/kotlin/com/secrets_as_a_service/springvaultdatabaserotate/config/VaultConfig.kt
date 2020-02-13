@@ -14,33 +14,48 @@ import org.springframework.vault.core.lease.event.SecretLeaseEvent
 import org.springframework.vault.core.lease.event.SecretLeaseExpiredEvent
 import javax.annotation.PostConstruct
 
-@Configuration
 @ConditionalOnBean(SecretLeaseContainer::class)
+// tag::autowire[]
+@Configuration
 class VaultConfig(
+        //tag::ignore_autowire[]
+        private val applicationContext: ConfigurableApplicationContext,
+        private val hikariDataSource: HikariDataSource,
+        //end::ignore_autowire[]
         private val leaseContainer: SecretLeaseContainer,
         @Value("\${spring.cloud.vault.database.role}")
-        private val databaseRole: String,
-        private val applicationContext: ConfigurableApplicationContext,
-        private val hikariDataSource: HikariDataSource
+        private val databaseRole: String
 ) {
+    // end::autowire[]
 
+    // tag::detect_expiring[]
     @PostConstruct
     private fun postConstruct() {
         val vaultCredsPath = "database/creds/$databaseRole"
         leaseContainer.addLeaseListener { event ->
-            if (event.path == vaultCredsPath) {
+            if (event.path == vaultCredsPath) { // <1>
                 log.info { "Lease change for DB: ($event) : (${event.lease})" }
-                if (event.isLeaseExpired && event.mode == RENEW) {
+                // tag::request_rotate[]
+                if (event.isLeaseExpired && event.mode == RENEW) { // <1>
+                    // tag::ignore1_request_rotate[]
+                    // TODO Rotate the credentials here <2>
+                    // end::ignore1_request_rotate[]
+                    // tag::ignore_detect_expiring[]
                     log.info { "Replace RENEW for expired credential with ROTATE" }
-                    leaseContainer.requestRotatingSecret(vaultCredsPath)
+                    leaseContainer.requestRotatingSecret(vaultCredsPath) // <2>
+                    // tag::ignore2_request_rotate[]
                 } else if (event is SecretLeaseCreatedEvent && event.mode == ROTATE) {
                     val credential = event.credential
                     updateDbProperties(credential)
                     updateDataSource(credential)
+                    // end::ignore_detect_expiring[]
+                    // end::ignore2_request_rotate[]
                 }
+                // end::request_rotate[]
             }
         }
     }
+    // end::detect_expiring[]
 
     private val SecretLeaseEvent.path get() = source.path
     private val SecretLeaseEvent.isLeaseExpired
