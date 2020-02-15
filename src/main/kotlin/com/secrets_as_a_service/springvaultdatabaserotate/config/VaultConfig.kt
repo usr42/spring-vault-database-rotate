@@ -20,7 +20,9 @@ import javax.annotation.PostConstruct
 class VaultConfig(
         //tag::ignore_autowire[]
         private val applicationContext: ConfigurableApplicationContext,
+        //tag::ignore_autowire2[]
         private val hikariDataSource: HikariDataSource,
+        //end::ignore_autowire2[]
         //end::ignore_autowire[]
         private val leaseContainer: SecretLeaseContainer,
         @Value("\${spring.cloud.vault.database.role}")
@@ -33,24 +35,31 @@ class VaultConfig(
     private fun postConstruct() {
         val vaultCredsPath = "database/creds/$databaseRole"
         leaseContainer.addLeaseListener { event ->
-            if (event.path == vaultCredsPath) { // <1>
+            if (event.path == vaultCredsPath) {
                 log.info { "Lease change for DB: ($event) : (${event.lease})" }
                 // tag::request_rotate[]
-                if (event.isLeaseExpired && event.mode == RENEW) { // <1>
-                    // tag::ignore1_request_rotate[]
-                    // TODO Rotate the credentials here <2>
-                    // end::ignore1_request_rotate[]
+                // tag::get_rotated_secret[]
+                if (event.isLeaseExpired && event.mode == RENEW) {
+                    // tag::ignore_todo_rotate[]
+                    // TODO Rotate the credentials here <1>
+                    // end::ignore_todo_rotate[]
                     // tag::ignore_detect_expiring[]
                     log.info { "Replace RENEW for expired credential with ROTATE" }
-                    leaseContainer.requestRotatingSecret(vaultCredsPath) // <2>
+                    leaseContainer.requestRotatingSecret(vaultCredsPath) // <1>
                     // tag::ignore2_request_rotate[]
-                } else if (event is SecretLeaseCreatedEvent && event.mode == ROTATE) {
-                    val credential = event.credential
-                    updateDbProperties(credential)
-                    updateDataSource(credential)
+                } else if (event is SecretLeaseCreatedEvent && event.mode == ROTATE) { // <2>
+                    val credential = event.credentials // <3>
+                    // TODO Update database connection
+                    // tag::ignore_update_credentials[]
+                    // tag::refresh_credentials[]
+                    updateDbProperties(credential) // <1>
+                    updateDataSource(credential) // <2>
+                    // end::refresh_credentials[]
+                    // end::ignore_update_credentials[]
                     // end::ignore_detect_expiring[]
                     // end::ignore2_request_rotate[]
                 }
+                // end::get_rotated_secret[]
                 // end::request_rotate[]
             }
         }
@@ -62,22 +71,25 @@ class VaultConfig(
         get() = this is SecretLeaseExpiredEvent
     private val SecretLeaseEvent.mode get() = source.mode
 
-    private val SecretLeaseCreatedEvent.credential
-        get() = Credential(get("username"), get("password"))
+    // tag::credentials_property_extension[]
+    private val SecretLeaseCreatedEvent.credentials
+        get() = Credential(get("username"), get("password")) // <1>
 
     private fun SecretLeaseCreatedEvent.get(param: String): String {
-        val value = secrets[param] as? String
-        if (value == null) {
+        val value = secrets[param] as? String // <2>
+        if (value == null) { // <3>
             log.error {
                 "Cannot update DB credentials (no $param available). Shutting down."
             }
             applicationContext.close()
             throw IllegalStateException("Cannot get $param from secrets")
         }
-        return value
+        return value // <4>
     }
 
-    private fun updateDbProperties(credential: Credential) {
+    // tag::ignore_credentials_property_extension[]
+    // tag::refresh_credentials_methods[]
+    private fun updateDbProperties(credential: Credential) { // <1>
         val (username, password) = credential
         System.setProperty("spring.datasource.username", username)
         System.setProperty("spring.datasource.password", password)
@@ -86,18 +98,21 @@ class VaultConfig(
     private fun updateDataSource(credential: Credential) {
         val (username, password) = credential
         log.info { "==> Update database credentials" }
-        hikariDataSource.hikariConfigMXBean.apply {
+        hikariDataSource.hikariConfigMXBean.apply { // <2>
             setUsername(username)
             setPassword(password)
         }
-        hikariDataSource.hikariPoolMXBean?.softEvictConnections()
+        hikariDataSource.hikariPoolMXBean?.softEvictConnections() // <3>
                 ?.also { log.info { "Soft Evict Hikari Data Source Connections" } }
-                ?: log.info { "CANNOT Soft Evict Hikari Data Source Connections" }
+                ?: log.warn { "CANNOT Soft Evict Hikari Data Source Connections" }
     }
+    // end::refresh_credentials_methods[]
 
     companion object {
         private val log = KotlinLogging.logger { }
     }
 
+    // end::ignore_credentials_property_extension[]
     private data class Credential(val username: String, val password: String)
+    // end::credentials_property_extension[]
 }
