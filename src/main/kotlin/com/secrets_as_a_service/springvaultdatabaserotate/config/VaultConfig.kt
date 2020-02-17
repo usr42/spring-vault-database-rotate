@@ -16,6 +16,7 @@ import javax.annotation.PostConstruct
 
 @ConditionalOnBean(SecretLeaseContainer::class)
 // tag::autowire[]
+// tag::complete[]
 @Configuration
 class VaultConfig(
         //tag::ignore_autowire[]
@@ -41,7 +42,9 @@ class VaultConfig(
                 // tag::get_rotated_secret[]
                 if (event.isLeaseExpired && event.mode == RENEW) {
                     // tag::ignore_todo_rotate[]
+                    // tag::ignore_complete[]
                     // TODO Rotate the credentials here <1>
+                    // end::ignore_complete[]
                     // end::ignore_todo_rotate[]
                     // tag::ignore_detect_expiring[]
                     log.info { "Replace RENEW for expired credential with ROTATE" }
@@ -49,7 +52,9 @@ class VaultConfig(
                     // tag::ignore2_request_rotate[]
                 } else if (event is SecretLeaseCreatedEvent && event.mode == ROTATE) { // <2>
                     val credential = event.credentials // <3>
+                    // tag::ignore_complete[]
                     // TODO Update database connection
+                    // end::ignore_complete[]
                     // tag::ignore_update_credentials[]
                     // tag::refresh_credentials[]
                     updateDbProperties(credential) // <1>
@@ -116,3 +121,4 @@ class VaultConfig(
     private data class Credential(val username: String, val password: String)
     // end::credentials_property_extension[]
 }
+// end::complete[]
