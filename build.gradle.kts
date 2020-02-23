@@ -10,8 +10,8 @@ plugins {
     kotlin("plugin.jpa") version "1.3.61"
 
     //end::ignore_plugins[]
-    id("org.springframework.boot") version "2.2.2.RELEASE" // <1>
-    id("io.spring.dependency-management") version "1.0.8.RELEASE" // <2>
+    id("org.springframework.boot") version "2.2.4.RELEASE" // <1>
+    id("io.spring.dependency-management") version "1.0.9.RELEASE" // <2>
 }
 
 //end::plugins[]
