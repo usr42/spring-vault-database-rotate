@@ -62,8 +62,8 @@ class VaultConfig(
                         applicationContext.close() // <1>
                         return@addLeaseListener // <2>
                     }
+                    refreshDatabaseConnection(credentials) // <3>
                     // end::handle_no_credentials[]
-                    refreshDatabaseConnection(credentials)
                     // end::ignore_update_credentials[]
                     // end::ignore_detect_expiring[]
                     // end::ignore2_request_rotate[]
