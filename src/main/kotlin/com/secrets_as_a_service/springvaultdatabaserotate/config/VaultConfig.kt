@@ -51,15 +51,19 @@ class VaultConfig(
                     leaseContainer.requestRotatingSecret(vaultCredsPath) // <1>
                     // tag::ignore2_request_rotate[]
                 } else if (event is SecretLeaseCreatedEvent && event.mode == ROTATE) { // <2>
-                    val credential = event.credentials // <3>
+                    val credentials = event.credentials // <3>
                     // tag::ignore_complete[]
                     // TODO Update database connection
                     // end::ignore_complete[]
                     // tag::ignore_update_credentials[]
-                    // tag::refresh_credentials[]
-                    updateDbProperties(credential) // <1>
-                    updateDataSource(credential) // <2>
-                    // end::refresh_credentials[]
+                    // tag::handle_no_credentials[]
+                    if (credentials == null) {
+                        log.error { "Cannot get updated DB credentials. Shutting down." }
+                        applicationContext.close() // <1>
+                        return@addLeaseListener // <2>
+                    }
+                    // end::handle_no_credentials[]
+                    refreshDatabaseConnection(credentials)
                     // end::ignore_update_credentials[]
                     // end::ignore_detect_expiring[]
                     // end::ignore2_request_rotate[]
@@ -71,25 +75,28 @@ class VaultConfig(
     }
     // end::detect_expiring[]
 
+    // tag::refresh_credentials[]
+    private fun refreshDatabaseConnection(credential: Credential) {
+        updateDbProperties(credential) // <1>
+        updateDataSource(credential) // <2>
+    }
+    // end::refresh_credentials[]
+
     private val SecretLeaseEvent.path get() = source.path
     private val SecretLeaseEvent.isLeaseExpired
         get() = this is SecretLeaseExpiredEvent
     private val SecretLeaseEvent.mode get() = source.mode
 
     // tag::credentials_property_extension[]
-    private val SecretLeaseCreatedEvent.credentials
-        get() = Credential(get("username"), get("password")) // <1>
-
-    private fun SecretLeaseCreatedEvent.get(param: String): String {
-        val value = secrets[param] as? String // <2>
-        if (value == null) { // <3>
-            log.error {
-                "Cannot update DB credentials (no $param available). Shutting down."
-            }
-            applicationContext.close()
-            throw IllegalStateException("Cannot get $param from secrets")
+    private val SecretLeaseCreatedEvent.credentials: Credential?
+        get() {
+            val username = get("username") ?: return null // <1>
+            val password = get("password") ?: return null  // <1>
+            return Credential(username, password)
         }
-        return value // <4>
+
+    private fun SecretLeaseCreatedEvent.get(param: String): String? {
+        return secrets[param] as? String // <2>
     }
 
     // tag::ignore_credentials_property_extension[]

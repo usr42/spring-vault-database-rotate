@@ -11,4 +11,4 @@ vault write database/config/postgres plugin_name=postgresql-database-plugin allo
 echo '### Create "readonly" db role'
 vault write database/roles/readonly db_name=postgres \
     creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
-    GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" default_ttl="30" max_ttl="60"
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" default_ttl="15" max_ttl="30"
